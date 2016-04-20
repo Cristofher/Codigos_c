@@ -1,3 +1,6 @@
+//Cristofher Andrés Rojas Rojas
+//Indice Inverso
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <omp.h>
@@ -29,7 +32,8 @@ int main(int argc, char *argv[]) {
 
     //Vector para almacenar la cantidad de documentos de cada página
     int *Vector;
-    
+    int *Vector_Indices;
+
     //Path archivo, String Palabra & página
     char path[256], palabra[MAX], pagina[MAX];
 
@@ -79,13 +83,13 @@ int main(int argc, char *argv[]) {
       	
       	//Copia de String en Estructura lista.Valor
         strcpy(lista[i][j].valor, pagina);
-		printf("%s\n",lista[i][j].valor );
+		//printf("%s\n",lista[i][j].valor );
 
 		//Guarda la cantidad de documentos en su página asociada        
         for (j = 1; j < num_documentos+1; ++j) {
             fscanf(f_archivo, "%s", palabra);
             strcpy(lista[i][j].valor, palabra);
-  			printf("%s\n",lista[i][j].valor );
+  			//printf("%s\n",lista[i][j].valor );
         }
     }
 
@@ -96,14 +100,15 @@ int main(int argc, char *argv[]) {
     num_consultas = atoi(palabra);
     
     //Se le asigna memoria a las consultas que se realizaran
-    indice = (Lista **)malloc(sizeof(Lista *)*num_consultas); 
+    indice = (Lista **)malloc(sizeof(Lista *)*num_consultas);
+    Vector_Indices = (int*)malloc(num_consultas*sizeof(int)); 
     
     //Se recorren y almacenan las cantidades de consultas
     for (int k = 0; k < num_consultas; ++k) {
-    	indice[k] = (Lista *)malloc(sizeof(Lista)); 
+    	indice[k] = (Lista *)malloc(sizeof(Lista)*(num_paginas+1));
         fscanf(f_archivo, "%s", palabra);
-        strcpy(indice[k][0].valor, palabra);;
-        printf("%s\n",indice[k][0].valor );
+        strcpy(indice[k][0].valor, palabra);
+        //printf("%s\n",indice[k][0].valor );
     }
     //Cierre de archivo
     fclose(f_archivo);
@@ -111,29 +116,54 @@ int main(int argc, char *argv[]) {
 
     /*Trabajo con Hilos*/
 
-    int j=0,aux_threads;
-	#pragma omp parallel firstprivate(aux_threads,j)
+    int j=0,aux_threads,k,num_indices;
+	#pragma omp parallel firstprivate(aux_threads,j,k,num_indices,indice)
     {	
     	int tid = omp_get_thread_num();
-    	
+    	num_indices=1;
     	for (j = 0; j < num_consultas; j=j+N_hilos)
     	{
     		aux_threads=tid+j;
     		if(aux_threads<num_consultas){
-    			printf("Palabra: %s\n",indice[aux_threads][0].valor );
+    			//printf("Palabra: %s\n",indice[aux_threads][0].valor );
     			for (int i = 0; i < num_paginas; ++i)
     			{
-    				for (int k = 1; k < Vector[i]+1; ++k)
+    				for (k = 1; k < Vector[i]+1; ++k)
     				{
     					int comparador = strcmp(indice[aux_threads][0].valor,lista[i][k].valor);
     					if(comparador == 0){
-    						printf("Esta en %d\n",i+1);
+    						strcpy(indice[aux_threads][num_indices].valor,lista[i][0].valor);
+    						Vector_Indices[aux_threads]=num_indices;
+    						num_indices++;
     					}
     				}
     			}
 
     		}
         }
+    }
+    //Auxiliar para salidas nulas
+    int aux;
+    for (int i = 0; i < num_consultas; ++i)
+    {
+    	aux=1;
+    	printf("Resultados para \"%s\": ",indice[i][0].valor);
+    	for (int j = 1; j < num_paginas+1; ++j)
+    	{	
+    		if (indice[i][j].valor[0]!='\0')
+    		{
+    			printf("%s ",indice[i][j].valor);
+    		}
+    		
+    		if (indice[i][j].valor[0]=='\0')
+    		{
+    			aux++;
+    			if(aux==num_paginas+1){
+    				printf("No hay resultados.");
+    			}
+    		}
+    	}
+    	printf("\n");
     }
     return 0;
 }
